@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 198 198" role="img" aria-label="מי האימפוסטר?">
+<defs>
+ <linearGradient id="iconbg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9B61FA"/><stop offset="1" stop-color="#44218A"/></linearGradient>
+ <linearGradient id="eye" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#F5D9FF"/><stop offset="1" stop-color="#90DBFF"/></linearGradient>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<g >
+ <rect x="5" y="5" width="187" height="187" rx="49" fill="#6B38C9" opacity=".45" filter="url(#glow)"/>
+ <rect width="198" height="198" rx="54" fill="url(#iconbg)" stroke="#B48AFF" stroke-width="3"/>
+ <path d="M42 75Q99 27 156 75V115Q99 168 42 115Z" fill="#170E2D" stroke="#EEE1FF" stroke-width="7" stroke-linejoin="round"/>
+ <path d="M58 93Q98 65 141 93Q98 129 58 93Z" fill="url(#eye)"/>
+ <circle cx="102" cy="96" r="13" fill="#1C1238"/>
+ <circle cx="105" cy="91" r="4" fill="#fff"/>
+ <path d="M99 39V28M69 48L61 37M130 48L138 37" stroke="#D1A4FF" stroke-linecap="round" stroke-width="6"/>
+ <path d="M160 149L172 137" stroke="#E8D2FF" stroke-width="6" stroke-linecap="round"/>
+ <circle cx="175" cy="132" r="5" fill="#D9C0FF"/>
+</g>
+</svg>
