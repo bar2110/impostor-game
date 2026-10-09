@@ -30,3 +30,36 @@
 @keyframes introHaze{50%{transform:translate(15px,-10px) scale(1.12)}}
 @keyframes introBreathe{50%{transform:scale(1.025)}}
 @media (prefers-reduced-motion:reduce){.intro,.intro *{animation:none!important;transition:none!important}}
+
+
+/* V5 branding refinements */
+.top-centered{justify-content:center;margin-bottom:14px}
+.top-meta{display:flex;justify-content:center;margin:6px 0 18px}
+.brand-icon-button{border:0;background:transparent;padding:0;cursor:pointer;display:grid;place-items:center}
+.brand-icon-button:focus-visible{outline:2px solid #d8b4ff;outline-offset:6px;border-radius:18px}
+.brand-logo{width:54px;height:54px;display:block;filter:drop-shadow(0 10px 22px #8f4ce666)}
+.home-hero{padding-top:8px}
+.home-logo{width:138px;height:138px;display:block;margin:12px auto 0;filter:drop-shadow(0 16px 48px #8749e06b)}
+.home-wordmark{margin:22px 0 0;display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.04;letter-spacing:-2px;font-weight:900;filter:drop-shadow(0 4px 20px #ad72fa50)}
+.home-wordmark-first{font-size:clamp(38px,10vw,56px);color:#fff}
+.home-wordmark-second{font-size:clamp(46px,12vw,74px);background:linear-gradient(170deg,#fff 8%,#e0bcff 49%,#a568fd 95%);color:transparent;background-clip:text;-webkit-background-clip:text;white-space:nowrap}
+.home-wordmark-question{color:#eebaff;-webkit-text-fill-color:#eebaff}
+.howto-card{padding-top:24px}
+.howto-copy{line-height:1.9;font-size:20px;max-width:22ch;margin:14px auto 0}
+.howto-line-two{display:inline-block;margin-top:6px}
+.howto-secret{margin-top:18px;padding-top:18px;border-top:1px solid #49335e}
+.secret-badge{display:inline-flex;align-items:center;justify-content:center;gap:10px;color:#d9c7ef;font-weight:700}
+.secret-badge-icon{width:24px;height:24px;display:block;filter:drop-shadow(0 0 10px #8b56dd80)}
+.footer{display:none!important}
+.mystery-icon{font-size:0;display:grid;place-items:center}
+.mystery-logo{width:110px;height:110px;display:block;filter:drop-shadow(0 0 36px #ac60ff)}
+@media(max-width:390px){.brand-logo{width:48px;height:48px}.home-logo{width:118px;height:118px}.howto-copy{font-size:18px}}
+
+/* V6 unified vector language and right-aligned button icons */
+.ui-icon{width:18px;height:18px;vertical-align:-4px;flex-shrink:0;color:#c498ff}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;direction:rtl}
+.btn .ui-icon{order:0}
+.heading h3 .ui-icon,.row .ui-icon,.badge .ui-icon{margin-left:6px}
+.icon-hero{width:68px;height:68px;stroke-width:1.5}
+.icon-champion{width:42px;height:42px;color:#ffe3a5;filter:drop-shadow(0 0 10px #d3a148);margin-left:12px}
+.champion{display:flex;align-items:center;justify-content:center;gap:8px}
