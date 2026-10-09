@@ -1,0 +1,42 @@
+'use strict';
+const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
+const PORT=process.env.PORT||3000;
+const rooms=new Map();
+const questions=JSON.parse(fs.readFileSync(path.join(__dirname,'questions.json'),'utf8'));
+const uid=()=>crypto.randomBytes(16).toString('hex');
+const now=()=>Date.now();
+function send(res,status,obj){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(JSON.stringify(obj));}
+function fail(msg,status=400){let e=new Error(msg);e.status=status;throw e;}
+function cleanName(v){return String(v||'').trim().slice(0,20).replace(/[<>]/g,'');}
+function auth(data){let r=rooms.get(String(data.code||'').trim());if(!r)fail('החדר לא נמצא',404);let p=r.players.find(p=>p.token===data.token);if(!p)fail('לא נמצאת הרשאה לחדר הזה',403);return [r,p];}
+function uniqueCode(){let c;do{c=String(100000+crypto.randomInt(900000))}while(rooms.has(c));return c;}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){let j=crypto.randomInt(i+1);[a[i],a[j]]=[a[j],a[i]]}return a;}
+function startRound(r){let unused=questions.filter(q=>!r.used.includes(q.id));if(!unused.length){r.used=[];unused=questions}let remainingTypes=['similar','different'].filter(t=>!r.typesUsed.includes(t));let roundsLeft=r.roundsCount-r.roundNumber; if(remainingTypes.length&&roundsLeft<=remainingTypes.length)unused=unused.filter(q=>remainingTypes.includes(q.type));let q=unused[crypto.randomInt(unused.length)];r.used.push(q.id);r.typesUsed.push(q.type);r.roundNumber++;r.round={question:q,impostor:shuffle(r.players)[0].id,answers:{},order:[],index:0,votes:{},tieVotes:{},tieCandidates:[],phase:'question',deadline:null,eliminated:null,outcome:null,awards:{}};r.status='playing';}
+function tally(votes){let totals={};Object.values(votes).forEach(id=>totals[id]=(totals[id]||0)+1);let top=Math.max(0,...Object.values(totals));return {totals,leaders:Object.keys(totals).filter(id=>totals[id]===top)};}
+function finishVote(r,second=false){let rd=r.round;let t=tally(second?rd.tieVotes:rd.votes);if(!second&&t.leaders.length>1){rd.tieCandidates=t.leaders;rd.phase='tiebreak';return;}rd.eliminated=t.leaders.length===1?t.leaders[0]:null;rd.outcome=rd.eliminated===rd.impostor?'caught':'escaped';rd.awards={};for(const p of r.players){const vote=rd.votes[p.id];let pts=vote===rd.impostor?100:0;if(p.id===rd.impostor&&rd.outcome==='escaped')pts+=200;rd.awards[p.id]=pts;p.score+=pts;}rd.phase='results';}
+function view(r,p){let rd=r.round;let base={code:r.code,me:p.id,host:r.host,settings:{rounds:r.roundsCount,discussion:r.discussionSeconds},status:r.status,roundNumber:r.roundNumber,players:r.players.map(x=>({id:x.id,name:x.name,score:x.score})),phase:rd?.phase||'lobby'};
+if(!rd)return base;
+base.answered=Object.keys(rd.answers).length;base.total=r.players.length;base.myAnswer=rd.answers[p.id]??null;base.myQuestion=rd.phase==='question'? (p.id===rd.impostor?rd.question.impostor:rd.question.normal):null;
+if(['turns','discussion','voting','tiebreak','results','finished'].includes(rd.phase)){base.order=rd.order;base.turnIndex=rd.index;base.currentPlayer=rd.order[rd.index]||null;}
+if(['discussion','voting','tiebreak','results','finished'].includes(rd.phase)){base.normalQuestion=rd.question.normal;base.deadline=rd.deadline;}
+if(['voting','tiebreak','results','finished'].includes(rd.phase)){base.myVote=rd.phase==='tiebreak'?rd.tieVotes[p.id]??null:rd.votes[p.id]??null;base.votedCount=rd.phase==='tiebreak'?Object.keys(rd.tieVotes).length:Object.keys(rd.votes).length;}
+if(['tiebreak','results','finished'].includes(rd.phase)){base.tieCandidates=rd.tieCandidates;}
+if(['results','finished'].includes(rd.phase)){base.impostor=rd.impostor;base.impostorQuestion=rd.question.impostor;base.eliminated=rd.eliminated;base.outcome=rd.outcome;base.awards=rd.awards;base.voteTotals=tally(rd.votes).totals;base.tieTotals=tally(rd.tieVotes).totals;}
+return base;}
+function processAction(data){let action=data.action;
+if(action==='create'){let name=cleanName(data.name);if(!name)fail('צריך להכניס שם');let roundsCount=Number(data.rounds)||5,discussionSeconds=Number(data.discussion)||180;if(![3,5,10,15,20].includes(roundsCount)||![60,120,180,300,420].includes(discussionSeconds))fail('הגדרות לא חוקיות');let code=uniqueCode(),p={id:uid(),token:uid(),name,score:0},r={code,host:p.id,players:[p],roundsCount,discussionSeconds,status:'lobby',roundNumber:0,round:null,used:[],typesUsed:[],created:now()};rooms.set(code,r);return {code,token:p.token};}
+if(action==='join'){let r=rooms.get(String(data.code||'').trim());if(!r)fail('קוד חדר לא נמצא',404);if(r.status!=='lobby')fail('המשחק כבר התחיל');if(r.players.length>=16)fail('החדר מלא');let name=cleanName(data.name);if(!name)fail('צריך להכניס שם');if(r.players.some(p=>p.name.toLowerCase()===name.toLowerCase()))fail('השם כבר בשימוש בחדר');let p={id:uid(),token:uid(),name,score:0};r.players.push(p);return {code:r.code,token:p.token};}
+let [r,p]=auth(data),rd=r.round,host=p.id===r.host;
+if(action==='start'){if(!host||r.status!=='lobby')fail('רק מנהל החדר יכול להתחיל');if(r.players.length<3)fail('צריך לפחות 3 שחקנים');startRound(r);}
+else if(action==='answer'){if(rd?.phase!=='question')fail('לא ניתן לענות עכשיו');if(Object.hasOwn(rd.answers,p.id))fail('כבר שלחת תשובה');let v=String(data.answer??'').trim();if(!/^-?\d{1,7}(\.\d{1,2})?$/.test(v))fail('צריך מספר תקין');rd.answers[p.id]=Number(v);if(Object.keys(rd.answers).length===r.players.length){rd.order=shuffle(r.players.map(x=>x.id));rd.index=0;rd.phase='turns';}}
+else if(action==='done'){if(rd?.phase!=='turns'||rd.order[rd.index]!==p.id)fail('זה לא התור שלך');rd.index++;if(rd.index===rd.order.length){rd.phase='discussion';rd.deadline=now()+r.discussionSeconds*1000;}}
+else if(action==='vote'){if(!['voting','tiebreak'].includes(rd?.phase))fail('ההצבעה עדיין לא התחילה');let target=String(data.target),pool=rd.phase==='tiebreak'?rd.tieCandidates:r.players.map(x=>x.id);if(target===p.id||!pool.includes(target))fail('לא ניתן להצביע לשחקן הזה');let votes=rd.phase==='tiebreak'?rd.tieVotes:rd.votes;if(Object.hasOwn(votes,p.id))fail('כבר הצבעת');votes[p.id]=target;if(Object.keys(votes).length===r.players.length)finishVote(r,rd.phase==='tiebreak');}
+else if(action==='next'){if(!host||rd?.phase!=='results')fail('רק מנהל החדר יכול להתקדם');if(r.roundNumber>=r.roundsCount){rd.phase='finished';r.status='finished';}else startRound(r);}
+else if(action==='kick'){if(!host||r.status!=='lobby')fail('לא ניתן להסיר');let id=String(data.target);if(id===p.id)fail('לא ניתן להסיר את מנהל החדר');r.players=r.players.filter(x=>x.id!==id);}
+else if(action==='rematch'){if(!host||r.status!=='finished')fail('רק מנהל החדר יכול להתחיל מחדש');r.players.forEach(x=>x.score=0);r.roundNumber=0;r.used=[];r.typesUsed=[];startRound(r);}
+else fail('פעולה לא מוכרת');return {ok:true};}
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
+const server=http.createServer((req,res)=>{if(req.url.startsWith('/api/')){let chunks=[];req.on('data',x=>{chunks.push(x);if(Buffer.concat(chunks).length>12000)req.destroy()});req.on('end',()=>{try{const data=req.method==='POST'?JSON.parse(Buffer.concat(chunks).toString()||'{}'):Object.fromEntries(new URL(req.url,'http://localhost').searchParams);if(req.url.startsWith('/api/state')){let [r,p]=auth(data);send(res,200,view(r,p));}else if(req.url.startsWith('/api/action')&&req.method==='POST')send(res,200,processAction(data));else send(res,404,{error:'לא נמצא'});}catch(e){send(res,e.status||400,{error:e.message||'שגיאה'});}});return;}
+let pathname=new URL(req.url,'http://localhost').pathname;if(pathname==='/')pathname='/index.html';let file=path.resolve(__dirname,'public','.'+pathname);if(!file.startsWith(path.join(__dirname,'public')+path.sep)){res.writeHead(403);return res.end()};fs.readFile(file,(err,bytes)=>{if(err){res.writeHead(404);return res.end('Not found')}res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream'});res.end(bytes)});});
+setInterval(()=>{for(let [code,r] of rooms){if(r.round?.phase==='discussion'&&r.round.deadline<=now()){r.round.phase='voting';r.round.deadline=null;}if(now()-r.created>24*60*60*1000)rooms.delete(code);}},350);
+server.listen(PORT,'0.0.0.0',()=>console.log(`Impostor game listening on http://localhost:${PORT}`));
